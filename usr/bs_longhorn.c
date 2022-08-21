@@ -102,9 +102,9 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 			    length, cmd->offset);
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
-                        eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
+            eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
 			set_medium_error(&result, &key, &asc);
-                }
+        }
 		break;
 	case EXCHANGE_MEDIUM:
 		old_conn = lh->conn;
@@ -249,6 +249,7 @@ static tgtadm_err bs_longhorn_init(struct scsi_lu *lu, char *bsopts)
 		return TGTADM_NOMEM;
 	}
 	lh->size = size;
+	dprintf("Debug ===> longhorn_oct2019");
 	return bs_thread_open(info, bs_longhorn_request, nr_iothreads);
 }
 
