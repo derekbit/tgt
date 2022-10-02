@@ -46,9 +46,12 @@
 
 #include "liblonghorn.h"
 
+#define DEFAULT_REQUEST_TIMEOUT 15
+
 struct longhorn_info {
 	struct lh_client_conn *conn;
 	size_t size;
+	int request_timeout;
 	char *path;
 
 	pthread_rwlock_t rwlock;
@@ -88,9 +91,9 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 			    length, cmd->offset);
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
-                        eprintf("fail to write at %" PRIu64 " for %u\n", cmd->offset, length);
+            eprintf("fail to write at %" PRIu64 " for %u\n", cmd->offset, length);
 			set_medium_error(&result, &key, &asc);
-                }
+        }
 		break;
 	case READ_6:
 	case READ_10:
@@ -102,13 +105,13 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 			    length, cmd->offset);
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
-                        eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
+            eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
 			set_medium_error(&result, &key, &asc);
-                }
+        }
 		break;
 	case EXCHANGE_MEDIUM:
 		old_conn = lh->conn;
-		new_conn = lh_client_allocate_conn();
+		new_conn = lh_client_allocate_conn(lh->request_timeout);
 		if (new_conn == NULL) {
 			eprintf("cannot allocate new connection\n");
 			set_medium_error(&result, &key, &asc);
@@ -159,9 +162,9 @@ static int bs_longhorn_open(struct scsi_lu *lu, char *path,
 	int rc;
 	int len;
 
-        rc = lh_client_open_conn(lh->conn, path);
+	rc = lh_client_open_conn(lh->conn, path);
 	if (rc < 0) {
-		eprintf("Cannot estibalish connection\n");
+		eprintf("Cannot establish connection\n");
 		return rc;
 	}
 
@@ -177,7 +180,7 @@ static int bs_longhorn_open(struct scsi_lu *lu, char *path,
 static void bs_longhorn_close(struct scsi_lu *lu)
 {
 	if (LHP(lu)->conn) {
-                dprintf("close longhorn connection\n");
+		dprintf("close longhorn connection\n");
 		lh_client_close_conn(LHP(lu)->conn);
 	}
 }
@@ -225,19 +228,23 @@ static int is_opt(const char *opt, char *p)
 static tgtadm_err bs_longhorn_init(struct scsi_lu *lu, char *bsopts)
 {
 	struct bs_thread_info *info = BS_THREAD_I(lu);
-	char *ssize = NULL;
+	char *value = NULL;
 	size_t size = 0;
-        struct longhorn_info *lh = LHP(lu);
+	int request_timeout = DEFAULT_REQUEST_TIMEOUT;
+    struct longhorn_info *lh = LHP(lu);
 	int rc = 0;
 
 	while (bsopts && strlen(bsopts)) {
 		if (is_opt("size", bsopts)) {
-			ssize = slurp_value(&bsopts);
-			size = atoll(ssize);
+			value = slurp_value(&bsopts);
+			size = atoll(value);
+		} else if (is_opt("request_timeout", bsopts)) {
+			value = slurp_value(&bsopts);
+			request_timeout = atoi(value);
 		}
 	}
 
-	lh->conn = lh_client_allocate_conn();
+	lh->conn = lh_client_allocate_conn(request_timeout);
 	if (lh->conn == NULL) {
 		perror("Cannot allocate connection\n");
 		return TGTADM_NOMEM;
@@ -249,6 +256,7 @@ static tgtadm_err bs_longhorn_init(struct scsi_lu *lu, char *bsopts)
 		return TGTADM_NOMEM;
 	}
 	lh->size = size;
+	lh->request_timeout = request_timeout;
 	return bs_thread_open(info, bs_longhorn_request, nr_iothreads);
 }
 
@@ -266,15 +274,14 @@ static void bs_longhorn_exit(struct scsi_lu *lu)
 }
 
 static struct backingstore_template longhorn_bst = {
-	.bs_name		= "longhorn",
-	.bs_datasize		= sizeof(struct bs_thread_info) +
-					sizeof(struct longhorn_info),
-	.bs_open		= bs_longhorn_open,
-	.bs_close		= bs_longhorn_close,
-	.bs_init		= bs_longhorn_init,
-	.bs_exit		= bs_longhorn_exit,
-	.bs_cmd_submit		= bs_thread_cmd_submit,
-	.bs_oflags_supported    = O_SYNC | O_DIRECT | O_RDWR,
+	.bs_name				= "longhorn",
+	.bs_datasize			= sizeof(struct bs_thread_info) + sizeof(struct longhorn_info),
+	.bs_open				= bs_longhorn_open,
+	.bs_close				= bs_longhorn_close,
+	.bs_init				= bs_longhorn_init,
+	.bs_exit				= bs_longhorn_exit,
+	.bs_cmd_submit			= bs_thread_cmd_submit,
+	.bs_oflags_supported	= O_SYNC | O_DIRECT | O_RDWR,
 };
 
 __attribute__((constructor)) void register_bs_module(void)
