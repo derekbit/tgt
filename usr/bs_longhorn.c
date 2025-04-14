@@ -116,7 +116,7 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
             eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
-			set_medium_read_error(&result, &key, &asc);
+			set_medium_error(&result, &key, &asc);
         }
 		break;
 	case EXCHANGE_MEDIUM:
