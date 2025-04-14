@@ -70,6 +70,13 @@ static void set_medium_error(int *result, uint8_t *key, uint16_t *asc)
 	*asc = ASC_READ_ERROR;
 }
 
+static void set_medium_write_error(int *result, uint8_t *key, uint16_t *asc)
+{
+	*result = SAM_STAT_CHECK_CONDITION;
+	*key = MEDIUM_ERROR;
+	*asc = ASC_WRITE_ERROR;
+}
+
 static void bs_longhorn_request(struct scsi_cmd *cmd)
 {
 	int ret = 0;
@@ -95,7 +102,7 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
             eprintf("fail to write at %" PRIu64 " for %u\n", cmd->offset, length);
-			set_medium_error(&result, &key, &asc);
+			set_medium_write_error(&result, &key, &asc);
         }
 		break;
 	case READ_6:
@@ -109,7 +116,7 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
             eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
-			set_medium_error(&result, &key, &asc);
+			set_medium_read_error(&result, &key, &asc);
         }
 		break;
 	case EXCHANGE_MEDIUM:
