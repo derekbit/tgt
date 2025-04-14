@@ -73,8 +73,8 @@ static void set_medium_error(int *result, uint8_t *key, uint16_t *asc)
 static void set_medium_write_error(int *result, uint8_t *key, uint16_t *asc)
 {
 	*result = SAM_STAT_CHECK_CONDITION;
-	*key = MEDIUM_ERROR;
-	*asc = ASC_WRITE_ERROR;
+	*key = DATA_PROTECT;
+	*asc = ASC_WRITE_PROTECT;
 }
 
 static void bs_longhorn_request(struct scsi_cmd *cmd)
