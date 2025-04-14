@@ -74,7 +74,7 @@ static void set_medium_write_error(int *result, uint8_t *key, uint16_t *asc)
 {
 	*result = SAM_STAT_CHECK_CONDITION;
 	*key = DATA_PROTECT;
-	*asc = ASC_WRITE_PROTECT;
+	*asc = ASC_WRITE_PROTECT_SPACE_ALLOC_FAILED;
 }
 
 static void bs_longhorn_request(struct scsi_cmd *cmd)
