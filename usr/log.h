@@ -27,6 +27,9 @@
 #define LOG_H
 
 #include <sys/sem.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <time.h>
 
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
@@ -96,5 +99,25 @@ do {									\
 		log_debug("%s(%d) " fmt, __FUNCTION__, __LINE__, ##args); \
 } while (0)
 #endif
+
+#define LONGHORN_ERROR_LOG(fmt, ...) do { \
+    struct timeval tv; \
+    gettimeofday(&tv, NULL); \
+    struct tm tm_info; \
+    localtime_r(&tv.tv_sec, &tm_info); \
+    char buf[32]; \
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info); \
+    eprintf("[%s.%06ld] " fmt "\n", buf, (long)tv.tv_usec, ##__VA_ARGS__); \
+} while (0)
+
+#define LONGHORN_DEBUG_LOG(fmt, ...) do { \
+    struct timeval tv; \
+    gettimeofday(&tv, NULL); \
+    struct tm tm_info; \
+    localtime_r(&tv.tv_sec, &tm_info); \
+    char buf[32]; \
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info); \
+    dprintf("[%s.%06ld] " fmt "\n", buf, (long)tv.tv_usec, ##__VA_ARGS__); \
+} while (0)
 
 #endif	/* LOG_H */
